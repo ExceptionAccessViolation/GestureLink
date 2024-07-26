@@ -1,6 +1,7 @@
 package me.ishan.gesturelink
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
@@ -12,6 +13,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +48,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+//        if (!hasBluetoothPermissions(this)) {
+//            requestBluetoothPermissions(this)
+//        }
+
         setContent {
             GestureLinkTheme {
                 App()
@@ -64,31 +71,17 @@ fun Preview() {
 
 @Composable
 fun App() {
-//    Spacer(Modifier.height(20.dp))
-    Column(
-        modifier = Modifier
-            .padding(20.dp)
-            .fillMaxHeight(),
-        verticalArrangement = Arrangement.SpaceBetween,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        TextContent() // and here
-        Spacer(Modifier.height(30.dp))
-        BluetoothConnections()
-    }
-}
 
-@Composable
-fun TextContent(modifier: Modifier = Modifier) {
-    Text(
-        text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
-                "Duis nisl odio, malesuada eget ligula quis, sagittis sollicitudin " +
-                "urna. Donec auctor elit ex, vel rhoncus metus finibus sit amet. " +
-                "Vestibulum faucibus eros eu felis scelerisque, id mattis augue " +
-                "vestibulum. Integer iaculis sem nisi. Nulla cursus pulvinar augue. " +
-                "Integer porta sapien vel leo consectetur, viverra cursus metus " +
-                "convallis. Mauris pretium sollicitudin eleifend. Sed condimentum " +
-                "ex ut velit malesuada, non facilisis velit porta. Suspendisse potenti.",
+    var text by remember {
+        mutableStateOf(
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+                    "Duis nisl odio, malesuada eget ligula quis, sagittis sollicitudin " +
+                    "urna. Donec auctor elit ex, vel rhoncus metus finibus sit amet. " +
+                    "Vestibulum faucibus eros eu felis scelerisque, id mattis augue " +
+                    "vestibulum. Integer iaculis sem nisi. Nulla cursus pulvinar augue. " +
+                    "Integer porta sapien vel leo consectetur, viverra cursus metus " +
+                    "convallis. Mauris pretium sollicitudin eleifend. Sed condimentum " +
+                    "ex ut velit malesuada, non facilisis velit porta. Suspendisse potenti.",
 //                " Nunc tellus metus, fermentum vel cursus vel, porttitor in odio. " +
 //                "Ut vel ultricies sem. Aliquam semper orci turpis, eu mollis elit " +
 //                "fermentum et. Vestibulum ac venenatis lorem. Mauris nisl neque, " +
@@ -99,13 +92,41 @@ fun TextContent(modifier: Modifier = Modifier) {
 //                "sollicitudin semper odio consectetur ut. Cras accumsan feugiat enim, " +
 //                "eu mattis mauris convallis ut. Phasellus mauris metus, " +
 //                "porta et felis eget, ullamcorper posuere metus."
-        textAlign = TextAlign.Justify,
-        modifier = Modifier.padding(top = 30.dp), // here
-    )
+        )
+    }
+
+//    Spacer(Modifier.height(20.dp))
+    Column(
+        modifier = Modifier
+            .padding(20.dp)
+            .fillMaxHeight(),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        TextContent(text = text)
+        Spacer(Modifier.height(30.dp))
+        BluetoothConnections(onUpdateText = { newText ->
+            text = newText
+        })
+    }
 }
 
 @Composable
-fun BluetoothConnections(modifier: Modifier = Modifier) {
+fun TextContent(
+    modifier: Modifier = Modifier,
+    text: String
+) {
+    Text(
+        text = text,
+        textAlign = TextAlign.Justify,
+        modifier = Modifier.padding(top = 30.dp),
+    )
+}
+
+const val MAC = "4142CF5794E8" // Demo MAC of my headphones for now
+
+@Composable
+fun BluetoothConnections(modifier: Modifier = Modifier, onUpdateText: (String) -> Unit) {
     val context = LocalContext.current
     val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
@@ -113,7 +134,31 @@ fun BluetoothConnections(modifier: Modifier = Modifier) {
     var bluetoothStatusString by remember { mutableStateOf("Checking Bluetooth...") }
     var iconId by remember { mutableIntStateOf(R.drawable.bluetooth_error) }
 
-    fun bluetoothStatus() {
+    @SuppressLint("MissingPermission")
+    fun isArduinoConnected(MAC: String): Boolean {
+        /*if (
+            !(ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+        )) {
+                bluetoothStatusString = "no"
+                onUpdateText("no")
+                return false
+        }*/
+
+        assert(hasBluetoothPermissions(context))
+        val connectedDevices = bluetoothAdapter?.bondedDevices
+
+        connectedDevices?.forEach { device ->
+            val str = device.address.replace(":", "")
+            if (str == MAC)
+                return true
+        }
+
+        return false
+    }
+
+    fun updateBluetoothStatus() {
         if (!hasBluetoothPermissions(context)) {
             bluetoothStatusString = "Permissions not granted!"
             iconId = R.drawable.bluetooth_error
@@ -124,6 +169,11 @@ fun BluetoothConnections(modifier: Modifier = Modifier) {
             if (bluetoothAdapter.isEnabled) {
                 bluetoothStatusString = "Not connected"
                 iconId = R.drawable.bluetooth_on
+
+                if (isArduinoConnected(MAC)) {
+                    bluetoothStatusString = "Connected!"
+                    iconId = R.drawable.bluetooth_connected
+                }
             } else {
                 bluetoothStatusString = "Bluetooth is off"
                 iconId = R.drawable.bluetooth_disabled
@@ -131,22 +181,19 @@ fun BluetoothConnections(modifier: Modifier = Modifier) {
         }
     }
 
-    fun isArduinoConnected(MAC: String) {
-        if (!hasBluetoothPermissions(context)) return
-        val connectedDevices = bluetoothAdapter?.bondedDevices
-    }
+
 
     val bluetoothReceiver = remember {
         object : BroadcastReceiver() {
             override fun onReceive(p0: Context?, p1: Intent?) {
                 if (p1?.action == BluetoothAdapter.ACTION_STATE_CHANGED)
-                    bluetoothStatus()
+                    updateBluetoothStatus()
             }
         }
     }
 
     DisposableEffect(bluetoothAdapter) {
-        bluetoothStatus()
+        updateBluetoothStatus()
 
         context.registerReceiver(
             bluetoothReceiver,
@@ -164,7 +211,7 @@ fun BluetoothConnections(modifier: Modifier = Modifier) {
         Button(onClick = {
             if (!hasBluetoothPermissions(context))
                 requestBluetoothPermissions(context as ComponentActivity)
-            bluetoothStatus()
+            updateBluetoothStatus()
         }) {
             Icon(Icons.Filled.Refresh, contentDescription = null)
             Text(text = "  Refresh")
@@ -187,11 +234,9 @@ fun BluetoothConnections(modifier: Modifier = Modifier) {
 private fun hasBluetoothPermissions(context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED
-//            && (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
-//                    ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED)
+            && ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 }
 
-// Request Bluetooth permissions
 private fun requestBluetoothPermissions(activity: ComponentActivity) {
     ActivityCompat.requestPermissions(
         activity,
@@ -199,8 +244,8 @@ private fun requestBluetoothPermissions(activity: ComponentActivity) {
             Manifest.permission.BLUETOOTH,
             Manifest.permission.BLUETOOTH_ADMIN,
 //            Manifest.permission.BLUETOOTH_SCAN,
-//            Manifest.permission.BLUETOOTH_CONNECT
+            Manifest.permission.BLUETOOTH_CONNECT,
         ),
-        1 // Request code
+        1
     )
 }

@@ -2,14 +2,18 @@ package me.ishan.gesturelink
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -43,6 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import me.ishan.gesturelink.ui.theme.GestureLinkTheme
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -134,28 +141,43 @@ fun BluetoothConnections(modifier: Modifier = Modifier, onUpdateText: (String) -
     var bluetoothStatusString by remember { mutableStateOf("Checking Bluetooth...") }
     var iconId by remember { mutableIntStateOf(R.drawable.bluetooth_error) }
 
+    var deviceFound by remember { mutableStateOf(false) }
+
     @SuppressLint("MissingPermission")
-    fun isArduinoConnected(MAC: String): Boolean {
-        /*if (
-            !(ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-        )) {
-                bluetoothStatusString = "no"
-                onUpdateText("no")
-                return false
-        }*/
-
+    fun isArduinoConnected(MAC: String, onResult: (Boolean) -> Unit) {
         assert(hasBluetoothPermissions(context))
-        val connectedDevices = bluetoothAdapter?.bondedDevices
+//        val connectedDevices = bluetoothAdapter?.bondedDevices
 
-        connectedDevices?.forEach { device ->
-            val str = device.address.replace(":", "")
-            if (str == MAC)
-                return true
-        }
+        val connectedDevices = mutableListOf<BluetoothDevice>()
+        var str = ""
+//        val latch = CountDownLatch(1)
 
-        return false
+        // Get connected devices for GATT
+        connectedDevices.addAll(bluetoothManager.getConnectedDevices(BluetoothProfile.GATT))
+
+        // Query connected devices for A2DP and HEADSET profiles
+        bluetoothAdapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
+            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                when (profile) {
+                    BluetoothProfile.A2DP -> {
+                        connectedDevices.addAll(proxy.connectedDevices)
+                        bluetoothAdapter.closeProfileProxy(BluetoothProfile.A2DP, proxy)
+                    }
+
+                    BluetoothProfile.HEADSET -> {
+                        connectedDevices.addAll(proxy.connectedDevices)
+                        bluetoothAdapter.closeProfileProxy(BluetoothProfile.HEADSET, proxy)
+                    }
+                }
+
+                val found = connectedDevices.any { it.address.replace(":", "") == MAC }
+                onResult(found)
+            }
+
+            override fun onServiceDisconnected(profile: Int) {
+                // Handle the disconnection of the profile if needed
+            }
+        }, BluetoothProfile.A2DP)
     }
 
     fun updateBluetoothStatus() {
@@ -167,12 +189,26 @@ fun BluetoothConnections(modifier: Modifier = Modifier, onUpdateText: (String) -
             iconId = R.drawable.bluetooth_error
         } else {
             if (bluetoothAdapter.isEnabled) {
-                bluetoothStatusString = "Not connected"
+                /*bluetoothStatusString = "Not connected"
                 iconId = R.drawable.bluetooth_on
 
                 if (isArduinoConnected(MAC)) {
+                    Log.d("Device finder", "Updated it to connected!")
                     bluetoothStatusString = "Connected!"
                     iconId = R.drawable.bluetooth_connected
+                }*/
+
+                bluetoothStatusString = "Not connected"
+                iconId = R.drawable.bluetooth_on
+
+                isArduinoConnected(MAC) { found ->
+                    deviceFound = found
+                    bluetoothStatusString = if (found) {
+                        "Connected!"
+                    } else {
+                        "Not connected"
+                    }
+                    iconId = if (found) R.drawable.bluetooth_connected else R.drawable.bluetooth_on
                 }
             } else {
                 bluetoothStatusString = "Bluetooth is off"
@@ -180,8 +216,6 @@ fun BluetoothConnections(modifier: Modifier = Modifier, onUpdateText: (String) -
             }
         }
     }
-
-
 
     val bluetoothReceiver = remember {
         object : BroadcastReceiver() {

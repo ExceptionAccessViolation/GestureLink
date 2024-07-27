@@ -2,7 +2,6 @@ package me.ishan.gesturelink
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
@@ -13,11 +12,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,9 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import me.ishan.gesturelink.ui.theme.GestureLinkTheme
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Semaphore
-import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -146,11 +140,8 @@ fun BluetoothConnections(modifier: Modifier = Modifier, onUpdateText: (String) -
     @SuppressLint("MissingPermission")
     fun isArduinoConnected(MAC: String, onResult: (Boolean) -> Unit) {
         assert(hasBluetoothPermissions(context))
-//        val connectedDevices = bluetoothAdapter?.bondedDevices
 
         val connectedDevices = mutableListOf<BluetoothDevice>()
-        var str = ""
-//        val latch = CountDownLatch(1)
 
         // Get connected devices for GATT
         connectedDevices.addAll(bluetoothManager.getConnectedDevices(BluetoothProfile.GATT))
@@ -175,7 +166,7 @@ fun BluetoothConnections(modifier: Modifier = Modifier, onUpdateText: (String) -
             }
 
             override fun onServiceDisconnected(profile: Int) {
-                // Handle the disconnection of the profile if needed
+
             }
         }, BluetoothProfile.A2DP)
     }

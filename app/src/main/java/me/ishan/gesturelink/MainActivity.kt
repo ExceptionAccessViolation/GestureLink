@@ -15,6 +15,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,8 +26,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -36,23 +41,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import me.ishan.gesturelink.ui.theme.GestureLinkTheme
+import me.ishan.gesturelink.ui.theme.JetBrainsMono
+import me.ishan.gesturelink.ui.theme.MIDNIGHT_BLUE
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-//        if (!hasBluetoothPermissions(this)) {
-//            requestBluetoothPermissions(this)
-//        }
+        if (!hasBluetoothPermissions(this)) {
+            requestBluetoothPermissions(this)
+        }
 
         setContent {
             GestureLinkTheme {
@@ -70,6 +81,7 @@ fun Preview() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App() {
 
@@ -97,18 +109,52 @@ fun App() {
     }
 
 //    Spacer(Modifier.height(20.dp))
-    Column(
-        modifier = Modifier
-            .padding(20.dp)
-            .fillMaxHeight(),
-        verticalArrangement = Arrangement.SpaceBetween,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        TextContent(text = text)
-        Spacer(Modifier.height(30.dp))
-        BluetoothConnections(onUpdateText = { newText ->
-            text = newText
-        })
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "GestureLink",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 28.sp,
+                    )
+                },
+                colors =
+                TopAppBarDefaults.largeTopAppBarColors(
+//                    containerColor = Color(0xFF9c8986),
+//                    containerColor = Color(0xFF5f6f65),
+                    containerColor = MIDNIGHT_BLUE,
+                )
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                /*.padding(
+                    top = innerPadding.calculateTopPadding(),
+                    start = 20.dp,
+                    end = 20.dp,
+                    bottom = innerPadding.calculateBottomPadding()
+                )*/
+                .padding(innerPadding)
+                .fillMaxHeight()
+                .background(MIDNIGHT_BLUE),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            TextContent(text = text, modifier = Modifier
+                .padding(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 20.dp,
+                )
+            )
+            Spacer(Modifier.height(30.dp))
+            BluetoothConnections(onUpdateText = { newText ->
+                text = newText
+            })
+        }
     }
 }
 
@@ -120,7 +166,9 @@ fun TextContent(
     Text(
         text = text,
         textAlign = TextAlign.Justify,
-        modifier = Modifier.padding(top = 30.dp),
+//        fontFamily = JetBrainsMono,
+//        modifier = modifier.padding(top = 30.dp),
+        modifier = modifier,
     )
 }
 
@@ -254,6 +302,7 @@ fun BluetoothConnections(modifier: Modifier = Modifier, onUpdateText: (String) -
             )
         }
     }
+
 }
 
 private fun hasBluetoothPermissions(context: Context): Boolean {
